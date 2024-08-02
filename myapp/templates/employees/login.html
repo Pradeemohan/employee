@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        .invalid-feedback {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h2>Login</h2>
+        <div id="error_message" class="alert alert-danger" style="display: none;"></div>
+        <form id="loginForm" method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="username">Username</label>
+                <input type="text" class="form-control" id="username" name="username">
+                <div class="invalid-feedback">Please enter username</div>
+            </div>
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" class="form-control" id="password" name="password">
+                <div class="invalid-feedback">Please enter password</div>
+            </div>
+            <button type="submit" class="btn btn-primary">Login</button>
+        </form>
+    </div>
+    <script>
+        function showValidationError(inputId, message) {
+            let errorDiv = $("#" + inputId).siblings(".invalid-feedback");
+            errorDiv.text(message);
+            errorDiv.show();
+            $("#" + inputId).addClass("is-invalid");
+        }
+
+        function clearValidationErrors() {
+            $(".invalid-feedback").hide();
+            $(".form-control").removeClass("is-invalid");
+        }
+
+        $(document).ready(function() {
+            $('#loginForm').submit(function(event) {
+                event.preventDefault();  // Prevent the form from submitting normally
+
+                clearValidationErrors();
+
+                // Gather form data
+                var formData = {
+                    'username': $('#username').val().trim(),
+                    'password': $('#password').val().trim(),
+                    'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val()
+                };
+
+                // Client-side validation
+                var isValid = true;
+
+                if (formData.username === '') {
+                    showValidationError("username", "Please enter username");
+                    isValid = false;
+                }
+
+                if (formData.password === '') {
+                    showValidationError("password", "Please enter password");
+                    isValid = false;
+                }
+
+                if (!isValid) {
+                    return false;  // Prevent form submission if validation fails
+                }
+
+                // Send AJAX request
+                $.ajax({
+                    type: 'POST',
+                    url: '/validate-login/',
+                    data: formData,
+                    dataType: 'json',
+                    success: function(response) {
+                        if (response.success) {
+                            window.location.href = '/index/';  // Redirect on success
+                        } else {
+                            $('#error_message').text(response.error_message).show();
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error:', error);
+                        $('#error_message').text('An error occurred. Please try again.').show();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

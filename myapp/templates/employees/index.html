@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employees Management</title>
+    <!-- Include required CSS files for DevExpress DataGrid -->
+
+
+    <link rel="stylesheet" href="https://cdn3.devexpress.com/jslib/21.2.5/css/dx.light.css">
+    <!-- Include jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Include DevExpress DataGrid library -->
+    <script src="https://cdn3.devexpress.com/jslib/21.2.5/js/dx.all.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Include Bootstrap CSS for styling -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+    <!-- Include Bootstrap JS for optional styling -->
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+    <style>
+        body {
+            font-family: 'Montserrat', sans-serif;
+            background-color: #f8f9fa;
+        }
+    
+        .navbar {
+            background-color: #007bff; /* Blue color for navbar */
+        }
+    
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+        }
+    
+        .btn-primary {
+            background-color: #007bff; /* Blue color for primary button */
+            border-color: #007bff; /* Blue color for button border */
+        }
+    
+        .btn-primary:hover {
+            background-color: #0056b3; /* Darker blue on hover */
+            border-color: #0056b3; /* Darker blue border on hover */
+        }
+    
+        
+        
+    </style>
+    
+    
+</head>
+<body>
+    <nav class="navbar navbar-expand-md navbar-dark bg-purple">
+        <div class="container">
+            <a class="navbar-brand" href="#" style="font-family: 'Montserrat', sans-serif; font-weight: 700; font-size: 1.5rem;">Employees Management</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'myapp:index' %}">Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'myapp:add_employee' %}">Add Employee</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'myapp:logout' %}">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <h2>Employee List</h2>
+        
+        <br>
+        
+        <!-- Filter Builder -->
+        <div id="filterBuilder"></div>
+        
+        <!-- Apply Filter Button -->
+        <div class="mt-4 mb-4">
+            <button type="button" class="btn btn-primary" id="applyFilter">Apply Filter</button>
+        </div>
+        
+        <!-- DevExpress DataGrid Container -->
+        <div id="gridContainer"></div>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            // Function to retrieve CSRF token from cookies
+            function getCSRFToken() {
+                var cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    var cookies = document.cookie.split(';');
+                    for (var i = 0; i < cookies.length; i++) {
+                        var cookie = cookies[i].trim();
+                        if (cookie.substring(0, 'csrftoken'.length + 1) === ('csrftoken' + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring('csrftoken'.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+            // Initialize DevExpress FilterBuilder
+            $("#filterBuilder").dxFilterBuilder({
+                fields: [
+                    { dataField: 'name', caption: 'Name', dataType: 'string' },
+                    { dataField: 'email', caption: 'Email', dataType: 'string' },
+                    { dataField: 'password', caption: 'Password', dataType: 'string' }
+                ],
+                value: null, 
+            });
+
+            // Initialize DevExpress DataGrid
+            $("#gridContainer").dxDataGrid({
+                dataSource: {
+                    load: function() {
+                        return $.getJSON('/get-employees/');
+                    },
+                    key: 'id'
+                },
+                columns: [
+                    { dataField: 'id', caption: 'ID' },
+                    { dataField: 'name', caption: 'Name' },
+                    { dataField: 'email', caption: 'Email' },
+                    { dataField: 'password', caption: 'Password' },
+                    {
+                        type: 'buttons',
+                        buttons: [
+                            {
+                                name: 'edit',
+                                hint: 'Edit',
+                                icon: 'edit',
+                                
+                                onClick: function(e) {
+                                    window.location.href = '/edit-employee/' + e.row.data.id + '/';
+                                }
+                            },
+                            {
+                                name: 'delete',
+                                hint: 'Delete',
+                                icon: 'trash',
+                                
+                                onClick: function(e) {
+                                    deleteEmployee(e.row.data.id);
+                                }
+                            }
+                        ]
+                    }
+                ],
+                editing: {
+                    allowUpdating: true,
+                    allowDeleting: true,
+                    
+                },
+                paging: {
+                    pageSize: 10
+                },
+                pager: {
+                    showPageSizeSelector: true,
+                    allowedPageSizes: [5, 10, 20],
+                    showInfo: true
+                },
+                filterRow: {
+                    visible: true
+                },
+                columnChooser: {
+                    mode: 'select',
+                    enabled: true
+                }
+            });
+
+            // Apply Filter Button Click Event
+            $('#applyFilter').click(function() {
+                var filter = $('#filterBuilder').dxFilterBuilder('instance').option('value');
+                $('#gridContainer').dxDataGrid('instance').option('filterValue', filter);
+            });
+
+            function deleteEmployee(employeeId) {
+                if (confirm('Are you sure you want to delete this employee?')) {
+                    $.ajax({
+                        url: '/delete-employee/' + employeeId + '/',
+                        type: 'POST',
+                        data: {
+                            csrfmiddlewaretoken: getCSRFToken()
+                        },
+                        success: function(response) {
+                            $('#gridContainer').dxDataGrid('instance').refresh();
+                        },
+                        error: function(xhr, status, error) {
+                            console.error('Error deleting employee:', error);
+                        }
+                    });
+                }
+            }
+        });
+    </script>
+</body>
+</html>
